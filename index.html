@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Modelo de respostas "Reclame Aqui" — Online</title>
+
+<style>
+:root {
+  --verde:#0f8a1f;
+  --verde-escuro:#0c6f19;
+}
+body { font-family: Arial, sans-serif; background:white; margin:0; }
+header { background:var(--verde); color:white; padding:20px; text-align:center; font-size:22px; }
+.container { width:92%; max-width:900px; margin:20px auto; }
+.card { border:2px solid var(--verde); border-radius:8px; padding:15px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.card h2 { color:var(--verde); margin:0 0 8px; }
+.texto { background:#f4f4f4; padding:10px; border-radius:6px; white-space:pre-wrap; }
+button { background:var(--verde); color:white; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; margin-top:8px; }
+button:hover { background:var(--verde-escuro); }
+input, textarea { width:100%; padding:8px; margin:6px 0; border-radius:6px; border:1px solid #ccc; }
+.add-form { border:2px solid var(--verde); border-radius:8px; padding:15px; margin-bottom:20px; background:#f9f9f9; }
+</style>
+</head>
+
+<body>
+
+<header>Modelos de resposta Reclame Aqui</header>
+
+<div class="container">
+
+<div class="add-form">
+  <h2>Adicionar nova tipologia</h2>
+  <input id="novoTitulo" placeholder="Título">
+  <textarea id="novoTexto" rows="4" placeholder="Texto da resposta"></textarea>
+  <button id="btnAdicionar">Adicionar</button>
+  <button id="btnLimpar">Limpar</button>
+  <hr>
+  <input id="barraPesquisa" placeholder="Pesquisar por título...">
+</div>
+
+<div id="modelosContainer"></div>
+
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// 🔥 FIREBASE CONFIG REAL
+const firebaseConfig = {
+  apiKey: "AIzaSyDtXzrWxvy32GL-ioTdv1VbGs6OFRGjts4",
+  authDomain: "respostas-reclame-aqui.firebaseapp.com",
+  databaseURL: "https://respostas-reclame-aqui-default-rtdb.firebaseio.com",
+  projectId: "respostas-reclame-aqui",
+  storageBucket: "respostas-reclame-aqui.firebasestorage.app",
+  messagingSenderId: "72743051066",
+  appId: "1:72743051066:web:c6dd42431fb18ca8d7ba03"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const modelosRef = db.ref("modelos");
+
+const container = document.getElementById("modelosContainer");
+
+// COPIAR TEXTO
+function copiarTexto(texto){
+  navigator.clipboard.writeText(texto)
+    .then(()=>alert("Texto copiado!"))
+    .catch(()=>alert("Erro ao copiar!"));
+}
+
+// CRIAR CARD
+function criarCard(id,titulo,texto){
+  const card=document.createElement("div");
+  card.className="card";
+  card.dataset.id=id;
+  card.dataset.titulo=titulo.toLowerCase();
+
+  const h=document.createElement("h2");
+  h.textContent=titulo;
+
+  const t=document.createElement("div");
+  t.className="texto";
+  t.textContent=texto;
+
+  const b=document.createElement("button");
+  b.textContent="📋 Copiar texto";
+  b.onclick=()=>copiarTexto(texto);
+
+  card.appendChild(h);
+  card.appendChild(t);
+  card.appendChild(b);
+
+  container.prepend(card);
+}
+
+// REALTIME
+modelosRef.on("child_added", snap=>{
+  const d=snap.val();
+  criarCard(snap.key,d.titulo,d.texto);
+});
+
+modelosRef.on("child_removed", snap=>{
+  const el=document.querySelector(`[data-id='${snap.key}']`);
+  if(el) el.remove();
+});
+
+// ADICIONAR
+document.getElementById("btnAdicionar").onclick=()=>{
+  const titulo=novoTitulo.value.trim();
+  const texto=novoTexto.value.trim();
+  if(!titulo||!texto) return alert("Preencha todos os campos.");
+
+  modelosRef.push({titulo,texto});
+  novoTitulo.value="";
+  novoTexto.value="";
+};
+
+// LIMPAR
+btnLimpar.onclick=()=>{
+  novoTitulo.value="";
+  novoTexto.value="";
+};
+
+// PESQUISA
+barraPesquisa.oninput=()=>{
+  const termo=barraPesquisa.value.toLowerCase();
+  document.querySelectorAll(".card").forEach(c=>{
+    c.style.display = c.dataset.titulo.includes(termo) ? "block":"none";
+  });
+};
+</script>
+
+</body>
+</html>
