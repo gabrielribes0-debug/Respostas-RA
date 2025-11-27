@@ -3,52 +3,94 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Modelo de respostas "Reclame Aqui" — Online</title>
+<title>Modelo de respostas Reclame Aqui</title>
 
 <style>
 :root {
   --verde:#0f8a1f;
   --verde-escuro:#0c6f19;
 }
-body { font-family: Arial, sans-serif; background:white; margin:0; }
-header { background:var(--verde); color:white; padding:20px; text-align:center; font-size:22px; }
+body { font-family: Arial, sans-serif; margin:0; background:#f9f9f9; }
+header {
+  background:var(--verde);
+  color:white;
+  padding:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+header button {
+  background:white;
+  color:var(--verde);
+  border:none;
+  padding:6px 12px;
+  border-radius:6px;
+  cursor:pointer;
+}
 .container { width:92%; max-width:900px; margin:20px auto; }
-.card { border:2px solid var(--verde); border-radius:8px; padding:15px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.card {
+  background:white;
+  border:2px solid var(--verde);
+  border-radius:8px;
+  padding:14px;
+  margin-bottom:12px;
+}
 .card h2 { color:var(--verde); margin:0 0 8px; }
-.texto { background:#f4f4f4; padding:10px; border-radius:6px; white-space:pre-wrap; }
-button { background:var(--verde); color:white; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; margin-top:8px; }
-button:hover { background:var(--verde-escuro); }
-input, textarea { width:100%; padding:8px; margin:6px 0; border-radius:6px; border:1px solid #ccc; }
-.add-form { border:2px solid var(--verde); border-radius:8px; padding:15px; margin-bottom:20px; background:#f9f9f9; }
+.texto { background:#eee; padding:10px; border-radius:6px; white-space:pre-wrap; }
+
+button {
+  margin-top:6px;
+  margin-right:4px;
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.copiar { background:#3498db; color:white; }
+.editar { background:#f39c12; color:white; }
+.lixo   { background:#e74c3c; color:white; }
+.rest   { background:#2ecc71; color:white; }
+.del    { background:black; color:white; }
+
+#lixeira { display:none; }
 </style>
 </head>
 
 <body>
 
-<header>Modelos de resposta Reclame Aqui</header>
+<header>
+  <span>Modelos Reclame Aqui</span>
+  <button onclick="alternar()">🗑 Lixeira</button>
+</header>
 
 <div class="container">
 
+<div id="ativos">
+
 <div class="add-form">
-  <h2>Adicionar nova tipologia</h2>
   <input id="novoTitulo" placeholder="Título">
-  <textarea id="novoTexto" rows="4" placeholder="Texto da resposta"></textarea>
-  <button id="btnAdicionar">Adicionar</button>
-  <button id="btnLimpar">Limpar</button>
-  <hr>
-  <input id="barraPesquisa" placeholder="Pesquisar por título...">
+  <textarea id="novoTexto" placeholder="Texto"></textarea>
+  <button onclick="adicionar()">Adicionar</button>
 </div>
 
-<div id="modelosContainer"></div>
+<div id="modelos"></div>
 
 </div>
 
-<!-- Firebase -->
+<div id="lixeira">
+
+<h3>Lixeira</h3>
+<div id="itensLixeira"></div>
+
+</div>
+
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 FIREBASE CONFIG REAL
 const firebaseConfig = {
   apiKey: "AIzaSyDtXzrWxvy32GL-ioTdv1VbGs6OFRGjts4",
   authDomain: "respostas-reclame-aqui.firebaseapp.com",
@@ -61,77 +103,101 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const modelosRef = db.ref("modelos");
+const ativosRef = db.ref("modelos");
+const lixoRef = db.ref("lixeira");
 
-const container = document.getElementById("modelosContainer");
+function copiar(t){ navigator.clipboard.writeText(t); }
 
-// COPIAR TEXTO
-function copiarTexto(texto){
-  navigator.clipboard.writeText(texto)
-    .then(()=>alert("Texto copiado!"))
-    .catch(()=>alert("Erro ao copiar!"));
+function card(id,titulo,texto,area){
+  const div=document.createElement("div");
+  div.className="card";
+
+  div.innerHTML=`
+    <h2>${titulo}</h2>
+    <div class="texto">${texto}</div>
+
+    ${area==="modelos"?`
+      <button class="copiar" onclick="copiar(\`${texto}\`)">Copiar</button>
+      <button class="editar" onclick="editar('${id}','${titulo}','${texto}')">Editar</button>
+      <button class="lixo" onclick="moverLixo('${id}')">Lixeira</button>
+    `:`
+      <button class="rest" onclick="restaurar('${id}')">Restaurar</button>
+      <button class="del" onclick="apagar('${id}')">Excluir</button>
+    `}
+  `;
+  return div;
 }
 
-// CRIAR CARD
-function criarCard(id,titulo,texto){
-  const card=document.createElement("div");
-  card.className="card";
-  card.dataset.id=id;
-  card.dataset.titulo=titulo.toLowerCase();
-
-  const h=document.createElement("h2");
-  h.textContent=titulo;
-
-  const t=document.createElement("div");
-  t.className="texto";
-  t.textContent=texto;
-
-  const b=document.createElement("button");
-  b.textContent="📋 Copiar texto";
-  b.onclick=()=>copiarTexto(texto);
-
-  card.appendChild(h);
-  card.appendChild(t);
-  card.appendChild(b);
-
-  container.prepend(card);
-}
-
-// REALTIME
-modelosRef.on("child_added", snap=>{
-  const d=snap.val();
-  criarCard(snap.key,d.titulo,d.texto);
+// REALTIME ATIVOS
+ativosRef.on("child_added", s=>{
+  const d=s.val();
+  modelos.prepend(card(s.key,d.titulo,d.texto,"modelos"));
 });
 
-modelosRef.on("child_removed", snap=>{
-  const el=document.querySelector(`[data-id='${snap.key}']`);
+ativosRef.on("child_removed", s=>{
+  const el=[...modelos.children].find(c=>c.innerHTML.includes(s.key));
   if(el) el.remove();
 });
 
-// ADICIONAR
-document.getElementById("btnAdicionar").onclick=()=>{
-  const titulo=novoTitulo.value.trim();
-  const texto=novoTexto.value.trim();
-  if(!titulo||!texto) return alert("Preencha todos os campos.");
+// LIXEIRA
+lixoRef.on("child_added", s=>{
+  const d=s.val();
+  itensLixeira.prepend(card(s.key,d.titulo,d.texto,"lixeira"));
+});
 
-  modelosRef.push({titulo,texto});
-  novoTitulo.value="";
-  novoTexto.value="";
-};
-
-// LIMPAR
-btnLimpar.onclick=()=>{
-  novoTitulo.value="";
-  novoTexto.value="";
-};
-
-// PESQUISA
-barraPesquisa.oninput=()=>{
-  const termo=barraPesquisa.value.toLowerCase();
-  document.querySelectorAll(".card").forEach(c=>{
-    c.style.display = c.dataset.titulo.includes(termo) ? "block":"none";
+lixoRef.on("child_removed", ()=>{
+  itensLixeira.innerHTML="";
+  lixoRef.once("value", snap=>{
+    snap.forEach(s=>{
+      const d=s.val();
+      itensLixeira.prepend(card(s.key,d.titulo,d.texto,"lixeira"));
+    });
   });
-};
+});
+
+// FUNÇÕES
+function adicionar(){
+  if(!novoTitulo.value||!novoTexto.value) return alert("Preencha tudo");
+  ativosRef.push({
+    titulo:novoTitulo.value,
+    texto:novoTexto.value
+  });
+  novoTitulo.value="";
+  novoTexto.value="";
+}
+
+function moverLixo(id){
+  ativosRef.child(id).once("value", s=>{
+    lixoRef.child(id).set(s.val());
+    ativosRef.child(id).remove();
+  });
+}
+
+function restaurar(id){
+  lixoRef.child(id).once("value", s=>{
+    ativosRef.child(id).set(s.val());
+    lixoRef.child(id).remove();
+  });
+}
+
+function apagar(id){
+  if(confirm("Excluir PERMANENTE?")){
+    lixoRef.child(id).remove();
+  }
+}
+
+function editar(id,titulo,texto){
+  const t=prompt("Novo título:",titulo);
+  const c=prompt("Novo texto:",texto);
+  if(t&&c){
+    ativosRef.child(id).set({titulo:t,texto:c});
+  }
+}
+
+function alternar(){
+  ativos.style.display=ativos.style.display==="none"?"block":"none";
+  lixeira.style.display=lixeira.style.display==="none"?"block":"none";
+}
 </script>
 
 </body>
